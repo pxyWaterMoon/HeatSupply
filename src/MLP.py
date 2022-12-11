@@ -8,15 +8,30 @@ from torch.utils.data import DataLoader
 def read():
     dir=r"data/train.xlsx"
     data = pd.read_excel(io=dir, sheet_name=0,header=0)
-    need_=data.iloc[:,4:]
+    # need_=data.iloc[(i for i in range(data.shape[0]) if (i % 6 == 2)),4:]
+    need_ = data.iloc[1:, 4:]
     need=need_.to_numpy()
-    # print(need_)
+    data2 = pd.read_excel(io = dir, sheet_name=1, header=0)
+    need1 = data2.iloc[1:, 1].to_numpy()
+    need1 = np.append(need1, 0.0)
+    # print(len(need1))
+    
+    need11 = []
+    need11 = np.append(need11, [np.linspace(need1[i], need1[i+1], 7)[:-1] for i in range(len(need1) - 1)])
+    
+    need1 = need11.reshape((-1, 1))
+    # print(need1[48:108])
     # print(need)
+    # print(need_)
+    print(need1.shape[0])
     need_delay=need[1:]
-    need2=np.hstack((need[:-1],need_delay))
+    print(need.shape[0])
+    need2 = np.hstack((need[:-1], need1))
+    need3 = np.hstack((need2,need_delay))
     # print("done")
-    # print(need2)
-    return need2
+    # print(need2[0])
+    # print(need3[0])
+    return need3
 
 class Net(nn.Module):
     def __init__(self, n_feature, n_hidden, n_output):
@@ -24,7 +39,11 @@ class Net(nn.Module):
         self.net_1 = nn.Sequential(
             nn.Linear(n_feature, n_hidden),
             nn.ReLU(),
-            nn.Linear(n_hidden, n_output)
+            nn.Linear(n_hidden, 256),
+            nn.ReLU(),
+            nn.Linear(256, n_hidden),
+            nn.ReLU(),
+            nn.Linear(n_hidden, n_output),           
         )
     
     def forward(self,x):
@@ -43,7 +62,7 @@ def test(net, loss_func, dataloader):
         test_num += data.size(0)
     print("Test error:", test_loss / test_num)
 
-def train(net,loss_func,optimizer,epochs,train_dataloader, test_dataloader):
+def train(net,loss_func,optimizer,scheduler,epochs,train_dataloader, test_dataloader):
     for epoch in range(epochs):
         avg_loss=0
         cnt=0
@@ -60,7 +79,9 @@ def train(net,loss_func,optimizer,epochs,train_dataloader, test_dataloader):
             cnt+=x.size(0)
             avg_loss+=loss.item()*x.size(0)
         avg_loss/=cnt
-        print("Epoch ",epoch,avg_loss)#?
+        scheduler.step()
+        # print("lr:", scheduler.get_last_lr())
+        # print("Epoch ",epoch,avg_loss)#?
         if epoch % 10 == 0:
             test(net, loss_func, test_dataloader)
 
@@ -89,26 +110,24 @@ if __name__=="__main__":
     print(f"Using {device} device")
 
     data=read()
-    x_,y_=np.hsplit(data,[9])
+    x_,y_=np.hsplit(data,[10])
     mydataset=MyDataset(x_,y_)
     train_dataset, test_dataset = data_split(mydataset, 0.8)
-    # x=torch.Tensor(x_)
-    # y=torch.Tensor(y_)
-    # x=x.cuda()
-    # y=y.cuda()
 
-    net = Net(9,10,1)
+    net = Net(10,256,1)
     print(net)
 
     net=net.cuda()
     # optimizer = torch.optim.SGD(net.parameters(),lr = 0.1)
     optimizer = torch.optim.Adam(net.parameters())
+    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer,step_size=30 , gamma=0.1) # 0.02
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.999)
     loss_func = torch.nn.MSELoss()
 
     train_data_l=DataLoader(dataset=train_dataset,batch_size=64,shuffle=True,drop_last=True)
     
     test_data_l=DataLoader(dataset=test_dataset,batch_size=1,shuffle=True,drop_last=True)
-    train(net,loss_func,optimizer,200,train_data_l, test_data_l)
-
+    train(net,loss_func,optimizer,scheduler,500,train_data_l, test_data_l)
+    test(net, loss_func, test_data_l)
 
     
