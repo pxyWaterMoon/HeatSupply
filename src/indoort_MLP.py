@@ -14,15 +14,13 @@ def read():
     need1 = data2.iloc[1:, 1].to_numpy()
     need1 = np.append(need1, 0.0)
     
-    need11 = []
+    need11 = [0.0]
     need11 = np.append(need11, [np.linspace(need1[i], need1[i+1], 7)[:-1] for i in range(len(need1) - 1)])
     
     need1 = need11.reshape((-1, 1))
-    # print(need1.shape[0])
     need_delay=need[1:]
-    # print(need.shape[0])
-    need2 = np.hstack((need[:-1], need1))
-    need3 = np.hstack((need2,need_delay))
+    need2 = np.hstack((need[:-1], need1[:-1]))
+    need3 = np.hstack((need2,need_delay[:, 4].reshape((-1, 1))))
     return need3
 
 class Net(nn.Module):
@@ -42,7 +40,7 @@ class Net(nn.Module):
         x = self.net_1(x)
         return x
 
-def test(net, loss_func, dataloader):
+def test(net, loss_func, dataloader, device):
     test_loss = 0
     test_num = 0
     for step, (data, label) in enumerate(dataloader):
@@ -55,9 +53,10 @@ def test(net, loss_func, dataloader):
     print("Test error:", test_loss / test_num)
     return test_loss / test_num
 
-def train(net,loss_func,optimizer,scheduler,epochs,train_dataloader, test_dataloader):
+def train(net,loss_func,optimizer,scheduler,epochs,train_dataloader, test_dataloader, device):
     saved_loss = 1000.0
-    state = {'net': net.state_dict(), 'optimizer': optimizer.state_dict(), 'epoch': -1}
+    best_net = net;
+    state = net.state_dict()
     for epoch in range(epochs):
         avg_loss=0
         cnt=0
@@ -76,12 +75,12 @@ def train(net,loss_func,optimizer,scheduler,epochs,train_dataloader, test_datalo
         # print("lr:", scheduler.get_last_lr())
         # print("Epoch ",epoch,avg_loss)#?
         if epoch % 10 == 0:
-            test_loss = test(net, loss_func, test_dataloader)
+            test_loss = test(net, loss_func, test_dataloader,device)
             if test_loss < saved_loss:
-                state = {'net': net.state_dict(), 'optimizer': optimizer.state_dict(), 'epoch': epoch}
+                # state = {'net': net.state_dict(), 'optimizer': optimizer.state_dict(), 'epoch': epoch}
+                state = net.state_dict()
                 saved_loss = test_loss
-    torch.save(net, 'indoor_MLP.pkl')
-    torch.save(state, 'indoor_MLP_parament.pkl')
+    torch.save(state, 'model/indoor_MLP_parament.pth')
 
 
     
@@ -108,11 +107,11 @@ if __name__=="__main__":
     print(f"Using {device} device")
 
     data=read()
-    x_,y_=np.hsplit(data,[10])
+    x_,y_=np.hsplit(data,[6])
     mydataset=MyDataset(x_,y_)
     train_dataset, test_dataset = data_split(mydataset, 0.8)
 
-    net = Net(10,256,1)
+    net = Net(6,256,1)
     print(net)
 
     net=net.cuda()
@@ -125,7 +124,7 @@ if __name__=="__main__":
     train_data_l=DataLoader(dataset=train_dataset,batch_size=64,shuffle=True,drop_last=True)
     
     test_data_l=DataLoader(dataset=test_dataset,batch_size=1,shuffle=True,drop_last=True)
-    train(net,loss_func,optimizer,scheduler,500,train_data_l, test_data_l)
-    test(net, loss_func, test_data_l)
+    train(net,loss_func,optimizer,scheduler,500,train_data_l, test_data_l, device)
+    test(net, loss_func, test_data_l, device)
 
     

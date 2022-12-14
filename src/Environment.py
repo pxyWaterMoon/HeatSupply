@@ -18,15 +18,13 @@ def read():
     need1 = data2.iloc[1:, 1].to_numpy()
     need1 = np.append(need1, 0.0)
     
-    need11 = []
+    need11 = [0.0]
     need11 = np.append(need11, [np.linspace(need1[i], need1[i+1], 7)[:-1] for i in range(len(need1) - 1)])
     
     need1 = need11.reshape((-1, 1))
-    # print(need1.shape[0])
     need_delay=need[1:]
-    # print(need.shape[0])
-    need2 = np.hstack((need[:-1], need1))
-    need3 = np.hstack((need2,need_delay))
+    need2 = np.hstack((need[:-1], need1[:-1]))
+    need3 = np.hstack((need2,need_delay[:, 4].reshape((-1, 1))))
     return need3
 
 class testevn (gym.Env) :
@@ -38,28 +36,27 @@ class testevn (gym.Env) :
         self.state = None
     
     def step(self, action): #action 是二次供水温度
-        line, pre_indoor, pre_back_t, now_supp_t, now_back_t, pre_sup_t , done = self.state
+        line, sec_supp_t, sec_back_t, indoor, done = self.state
         data = self.data[line]
         new_data = self.data[line + 1]
-        x = [pre_sup_t, pre_back_t, data[2], data[3], pre_indoor, data[5], now_supp_t, now_back_t, data[8], data[9]]
+        x = [sec_supp_t, sec_back_t, data[2], data[3], indoor, data[5]]
         now_indoor = self.indoor_net(x)
-        x = [now_supp_t, now_back_t, data[8], data[9], data[5], action] #?
         new_back_t = self.sce_back_net(x)
         
         if now_indoor < 20.0 or now_indoor > 24.0:
             done = True
             reward = -20000
         else:
-            reward = 0.5 * (action - new_data[6]) + 0.5 * abs(now_indoor - pre_indoor)
+            reward = 0.5 * (action - new_data[0]) + 0.5 * abs(now_indoor - indoor)
 
-        new_state = [line + 1, now_indoor, now_back_t, action, new_back_t, now_supp_t, done]
+        new_state = [line + 1, action, new_back_t, now_indoor, done]
         self.state = new_state
         return new_state, reward, done, {} 
     
     def reset(self):
         line = 0
         data = self.data[line]
-        origin_state = [0, data[4], data[1], data[6], data[7], data[0], False]
+        origin_state = [0, data[0], data[1], data[4], False]
         self.state = origin_state
         return
 
