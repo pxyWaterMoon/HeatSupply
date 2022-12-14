@@ -8,29 +8,22 @@ from torch.utils.data import DataLoader
 def read():
     dir=r"data/train.xlsx"
     data = pd.read_excel(io=dir, sheet_name=0,header=0)
-    # need_=data.iloc[(i for i in range(data.shape[0]) if (i % 6 == 2)),4:]
     need_ = data.iloc[1:, 4:]
     need=need_.to_numpy()
     data2 = pd.read_excel(io = dir, sheet_name=1, header=0)
     need1 = data2.iloc[1:, 1].to_numpy()
     need1 = np.append(need1, 0.0)
-    # print(len(need1))
     
     need11 = []
     need11 = np.append(need11, [np.linspace(need1[i], need1[i+1], 7)[:-1] for i in range(len(need1) - 1)])
     
     need1 = need11.reshape((-1, 1))
-    # print(need1[48:108])
-    # print(need)
-    # print(need_)
-    print(need1.shape[0])
+    # print(need1.shape[0])
     need_delay=need[1:]
-    print(need.shape[0])
+    # print(need.shape[0])
     need2 = np.hstack((need[:-1], need1))
-    need3 = np.hstack((need2,need_delay))
-    # print("done")
-    # print(need2[0])
-    # print(need3[0])
+    need3 = np.hstack((need2,need_delay[:,:2]))
+    # print(need3)
     return need3
 
 class Net(nn.Module):
@@ -61,8 +54,11 @@ def test(net, loss_func, dataloader):
         test_loss += loss.item() * data.size(0)
         test_num += data.size(0)
     print("Test error:", test_loss / test_num)
+    return test_loss / test_num
 
 def train(net,loss_func,optimizer,scheduler,epochs,train_dataloader, test_dataloader):
+    saved_loss = 1000.0
+    state = {'net': net.state_dict(), 'optimizer': optimizer.state_dict(), 'epoch': -1}
     for epoch in range(epochs):
         avg_loss=0
         cnt=0
@@ -71,11 +67,9 @@ def train(net,loss_func,optimizer,scheduler,epochs,train_dataloader, test_datalo
             y=torch.Tensor(y).to(device,dtype=torch.float32)
             prediction = net(x)
             loss = loss_func(prediction,y)
-
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            
             cnt+=x.size(0)
             avg_loss+=loss.item()*x.size(0)
         avg_loss/=cnt
@@ -83,7 +77,12 @@ def train(net,loss_func,optimizer,scheduler,epochs,train_dataloader, test_datalo
         # print("lr:", scheduler.get_last_lr())
         # print("Epoch ",epoch,avg_loss)#?
         if epoch % 10 == 0:
-            test(net, loss_func, test_dataloader)
+            test_loss = test(net, loss_func, test_dataloader)
+            if test_loss < saved_loss:
+                state = {'net': net.state_dict(), 'optimizer': optimizer.state_dict(), 'epoch': epoch}
+                saved_loss = test_loss
+    torch.save(net, 'sec_back_t_MLP.pkl')
+    torch.save(state, 'sec_back_t_MLP_parament.pkl')
 
 
     
@@ -110,11 +109,11 @@ if __name__=="__main__":
     print(f"Using {device} device")
 
     data=read()
-    x_,y_=np.hsplit(data,[10])
+    x_,y_=np.hsplit(data,[7])
     mydataset=MyDataset(x_,y_)
     train_dataset, test_dataset = data_split(mydataset, 0.8)
 
-    net = Net(10,256,1)
+    net = Net(7,256,1)
     print(net)
 
     net=net.cuda()
