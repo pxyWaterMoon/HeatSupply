@@ -62,7 +62,7 @@ def train(net,loss_func,optimizer,scheduler,epochs,train_dataloader, test_datalo
     for epoch in range(epochs):
         avg_loss=0
         cnt=0
-        for step, (x, y) in enumerate(train_dataloader):
+        for step, (x, y) in enumerate(train_dataloader):  # x : sec_supp_{t-1}, sec_back_{t-1}, sec_follow_{t-1}, outdoor, indoor, iradiance, sec_supp_t, sec_back_t, sec_follow_t, outdoor_t -> indoor
             x=torch.Tensor(x).to(device,dtype=torch.float32)
             y=torch.Tensor(y).to(device,dtype=torch.float32)
             prediction = net(x)
