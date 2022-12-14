@@ -162,8 +162,12 @@ batch_size = 64
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
     "cpu")
 
-env_name = 'CartPole-v0'
-env = gym.make(env_name)
+sec_back_net = torch.load('sec_back_t_MLP.pkl')
+indoor_net = torch.load('indoor_MLP.pkl')
+data = read()
+
+env = testevn(sec_back_net ,indoor_net, 24.435, data)
+
 random.seed(0)
 np.random.seed(0)
 env.seed(0)
