@@ -5,7 +5,7 @@ import torch.nn.functional as F
 class HeatSupplyMLP(nn.Module):
     def __init__(self) -> None:
         super().__init__()
-        self.hidden1 = nn.Linear(in_features=5, out_features=500, bias=True)
+        self.hidden1 = nn.Linear(in_features=9, out_features=500, bias=True)
         self.hidden2 = nn.Linear(500, 250)
         self.hidden3 = nn.Linear(250, 100)
         self.hidden4 = nn.Linear(100, 50)

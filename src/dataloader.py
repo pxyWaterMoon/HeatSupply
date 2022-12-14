@@ -8,14 +8,16 @@ class HeatSupplyDataSet(Dataset):
         super(HeatSupplyDataSet, self).__init__()
         data = pd.read_excel(io=dir, sheet_name=0,header=0)
         nplist = data[1:].T.to_numpy()[4:8].T
-        t_before = data[0:-1].T.to_numpy()[-1]
+        t_before = data[0:-1].T.to_numpy()[4:9]
         self.data = np.float64(np.insert(nplist, 4, t_before, axis=1))
         self.target = np.float64(data[1:].T.to_numpy()[-1])
-
+        
         self.data = np.array(self.data)
         self.data = torch.FloatTensor(self.data).cuda(device= device)
         self.target = np.array(self.target)
         self.target = torch.FloatTensor(self.target).cuda(device=device)
+        # print(self.data)
+        # print(self.target)
 
     def __getitem__(self, index):
         # return super().__getitem__(index)
